@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const MOONSHOT_API_KEY = process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || "";
-const MOONSHOT_BASE_URL = "https://api.moonshot.cn/v1";
+const OPENROUTER_API_KEY = process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || "";
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
-interface MoonshotResponse {
+interface OpenRouterResponse {
   choices: Array<{
     message: {
       content: string;
@@ -16,11 +16,11 @@ export class AIClient {
   private baseUrl: string;
 
   constructor() {
-    this.apiKey = MOONSHOT_API_KEY;
-    this.baseUrl = MOONSHOT_BASE_URL;
+    this.apiKey = OPENROUTER_API_KEY;
+    this.baseUrl = OPENROUTER_BASE_URL;
     
     if (!this.apiKey) {
-      throw new Error("Moonshot API key not found. Please set MOONSHOT_API_KEY or KIMI_API_KEY environment variable.");
+      throw new Error("OpenRouter API key not found. Please set MOONSHOT_API_KEY or KIMI_API_KEY environment variable.");
     }
   }
 
@@ -34,10 +34,10 @@ export class AIClient {
       
       messages.push({ role: "user", content: prompt });
 
-      const response = await axios.post<MoonshotResponse>(
+      const response = await axios.post<OpenRouterResponse>(
         `${this.baseUrl}/chat/completions`,
         {
-          model: "moonshot-v1-8k",
+          model: "openai/gpt-3.5-turbo",
           messages,
           temperature: 0.7,
           max_tokens: 2000,

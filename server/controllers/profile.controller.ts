@@ -12,24 +12,38 @@ const createProfileSchema = z.object({
   resume: z.string().min(10, 'Resume content is required'),
 });
 
-// Moonshot AI skill extraction
-async function extractSkillsFromResume(resumeText: string): Promise<string[]> {
+// OpenRouter AI skill extraction with GPT-3.5-turbo
+async function extractSkillsFromResume(resumeText: string): Promise<{
+  skills: string[];
+  experience: string;
+  tech_stack: string[];
+}> {
   try {
     const response = await axios.post(
-      'https://api.moonshot.cn/v1/chat/completions',
+      'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'kimi-k2:free',
+        model: 'openai/gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
-            content: 'You are an expert at analyzing resumes and extracting technical skills. Extract only the technical skills, programming languages, frameworks, and tools mentioned in the resume. Return them as a JSON array of strings.'
+            content: `You are an expert resume parser. Extract structured information from resumes and return ONLY valid JSON in this exact format:
+{
+  "skills": ["JavaScript", "Node.js", "React"],
+  "experience": "5 years in full-stack development",
+  "tech_stack": ["React", "PostgreSQL", "Docker"]
+}
+
+Extract:
+- skills: All technical skills, programming languages, frameworks, and tools
+- experience: Brief summary of years and type of experience  
+- tech_stack: Main technologies/frameworks used in their work`
           },
           {
             role: 'user',
-            content: `Analyze this resume and extract technical skills:\n\n${resumeText}`
+            content: `Parse this resume and extract structured information:\n\n${resumeText}`
           }
         ],
-        max_tokens: 500,
+        max_tokens: 800,
         temperature: 0.1
       },
       {
@@ -42,25 +56,27 @@ async function extractSkillsFromResume(resumeText: string): Promise<string[]> {
 
     const aiResponse = response.data.choices[0]?.message?.content;
     
-    // Try to parse JSON response, fallback to basic parsing
+    // Try to parse JSON response
     try {
-      return JSON.parse(aiResponse);
-    } catch {
-      // Fallback: extract skills from text response
-      const skillMatches = aiResponse.match(/["']([^"']+)["']/g);
-      return skillMatches ? skillMatches.map((s: string) => s.slice(1, -1)) : [];
+      const parsed = JSON.parse(aiResponse);
+      
+      // Validate required fields
+      if (!parsed.skills || !Array.isArray(parsed.skills)) {
+        throw new Error("Invalid response: missing skills array");
+      }
+      
+      return {
+        skills: parsed.skills,
+        experience: parsed.experience || "Experience not specified",
+        tech_stack: parsed.tech_stack || []
+      };
+    } catch (parseError) {
+      console.error('JSON parsing failed:', parseError);
+      throw new Error("Failed to process resume");
     }
   } catch (error) {
-    console.error('Moonshot AI Error:', error);
-    // Fallback: basic skill extraction from resume text
-    const commonSkills = [
-      'JavaScript', 'TypeScript', 'Python', 'Java', 'React', 'Node.js', 
-      'Express', 'PostgreSQL', 'MongoDB', 'AWS', 'Docker', 'Git'
-    ];
-    
-    return commonSkills.filter(skill => 
-      resumeText.toLowerCase().includes(skill.toLowerCase())
-    );
+    console.error('OpenRouter AI Error:', error);
+    throw new Error("Failed to process resume");
   }
 }
 
@@ -91,8 +107,8 @@ export class ProfileController {
         });
       }
 
-      // Extract skills using Moonshot AI
-      const extractedSkills = await extractSkillsFromResume(resume);
+      // Extract skills using OpenRouter AI
+      const aiResult = await extractSkillsFromResume(resume);
 
       // Create user record
       const [newUser] = await db
@@ -106,7 +122,7 @@ export class ProfileController {
         .returning();
 
       // Create profile with extracted skills
-      const skillsData = extractedSkills.map(skill => ({
+      const skillsData = aiResult.skills.map(skill => ({
         skill,
         level: 70, // Default skill level
         vectorScore: Math.random() * 100 // Placeholder score
@@ -116,8 +132,13 @@ export class ProfileController {
         .insert(profiles)
         .values({
           userId: newUser.id,
-          resumeData: { originalText: resume },
+          resumeData: { 
+            originalText: resume,
+            experience: aiResult.experience,
+            techStack: aiResult.tech_stack
+          },
           skills: skillsData,
+          experience: aiResult.experience,
         })
         .returning();
 
@@ -125,12 +146,14 @@ export class ProfileController {
       return res.status(201).json({
         message: 'Profile created successfully',
         userId: newUser.id,
-        skills: extractedSkills,
+        skills: aiResult.skills,
+        experience: aiResult.experience,
+        tech_stack: aiResult.tech_stack,
         profile: {
           id: newProfile.id,
           name: newUser.fullName,
           email: newUser.email,
-          skillCount: extractedSkills.length
+          skillCount: aiResult.skills.length
         }
       });
 
