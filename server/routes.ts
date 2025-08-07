@@ -6,6 +6,7 @@ import { assessmentAgent } from "./agents/assessmentAgent";
 import { recommenderAgent } from "./agents/recommenderAgent";
 import { trackerAgent } from "./agents/trackerAgent";
 import { hackathonAgent } from "./agents/hackathonAgent";
+import { profileRouter } from "./routes/profile.route";
 import { z } from "zod";
 import multer, { type FileFilterCallback } from "multer";
 import type { Request } from "express";
@@ -31,6 +32,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     req.user = { id: "user-1", username: "demo-user" };
     next();
   });
+
+  // New profile routes with AI skill extraction
+  app.use("/api/profile", profileRouter);
 
   // Profile routes
   app.post("/api/profile/resume", upload.single('resume'), async (req, res) => {
