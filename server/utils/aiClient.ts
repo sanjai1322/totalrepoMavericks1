@@ -34,6 +34,12 @@ export class AIClient {
       
       messages.push({ role: "user", content: prompt });
 
+      console.log("🔍 Sending to OpenRouter:", {
+        model: "openai/gpt-3.5-turbo",
+        messageCount: messages.length,
+        apiKeyExists: !!this.apiKey
+      });
+
       const response = await axios.post<OpenRouterResponse>(
         `${this.baseUrl}/chat/completions`,
         {
@@ -50,9 +56,20 @@ export class AIClient {
         }
       );
 
+      console.log("✅ OpenRouter response:", {
+        status: response.status,
+        choices: response.data.choices?.length || 0,
+        content: response.data.choices[0]?.message?.content?.substring(0, 200) + "..."
+      });
+
       return response.data.choices[0]?.message?.content || "";
-    } catch (error) {
-      console.error("AI completion error:", error);
+    } catch (error: any) {
+      console.error("❌ AI completion error:", {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
       throw new Error("Failed to generate AI completion");
     }
   }
@@ -62,27 +79,51 @@ export class AIClient {
     experience: string;
     education: string;
   }> {
-    const systemPrompt = `You are an expert resume parser. Extract and structure information from resumes.
-    Return only valid JSON with this exact structure:
-    {
-      "skills": [{"skill": "JavaScript", "level": 85, "vectorScore": 0.85}],
-      "experience": "Brief summary of work experience",
-      "education": "Brief summary of educational background"
-    }
-    
-    For skills:
-    - level: 1-100 proficiency score
-    - vectorScore: 0.0-1.0 normalized score for ML purposes
-    - Include programming languages, frameworks, tools, and technical skills`;
+    const prompt = `Extract skills, experience, and education from this resume. Respond only in valid JSON format:
 
-    const prompt = `Parse this resume and extract structured information:\n\n${resumeText}`;
+{
+  "skills": [{"skill": "JavaScript", "level": 85, "vectorScore": 0.85}],
+  "experience": "Brief summary of work experience",
+  "education": "Brief summary of educational background"
+}
+
+Resume: ${resumeText}`;
     
-    const response = await this.generateCompletion(prompt, systemPrompt);
+    console.log("🔍 Parsing resume with length:", resumeText.length);
+    
+    const response = await this.generateCompletion(prompt);
+    
+    console.log("🔍 Raw AI response:", response.substring(0, 500) + "...");
     
     try {
-      return JSON.parse(response);
+      // Clean the response to extract JSON
+      let cleanedResponse = response.trim();
+      
+      // Find JSON object boundaries
+      const jsonStart = cleanedResponse.indexOf('{');
+      const jsonEnd = cleanedResponse.lastIndexOf('}');
+      
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleanedResponse = cleanedResponse.substring(jsonStart, jsonEnd + 1);
+      }
+      
+      const parsed = JSON.parse(cleanedResponse);
+      
+      // Validate required fields
+      if (!parsed.skills || !Array.isArray(parsed.skills)) {
+        throw new Error("Invalid response: missing or invalid skills array");
+      }
+      
+      console.log("✅ Successfully parsed:", {
+        skillsCount: parsed.skills.length,
+        hasExperience: !!parsed.experience,
+        hasEducation: !!parsed.education
+      });
+      
+      return parsed;
     } catch (error) {
-      console.error("Failed to parse AI response:", error);
+      console.error("❌ Failed to parse AI response:", error);
+      console.error("❌ Raw response was:", response);
       throw new Error("Failed to parse resume data");
     }
   }

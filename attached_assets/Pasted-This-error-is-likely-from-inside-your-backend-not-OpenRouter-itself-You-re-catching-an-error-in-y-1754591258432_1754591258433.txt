@@ -1,0 +1,111 @@
+This error is likely from inside your backend, not OpenRouter itself.
+You're catching an error (in your try/catch) and returning a default message.
+
+✅ IMMEDIATE DEBUG CHECKLIST
+Let’s walk through what might be wrong and fix it step-by-step.
+
+✅ 1. Check the API Response from OpenRouter
+Add this temporary log in your moonshot.service.ts or wherever you handle the AI request:
+
+ts
+Copy code
+console.log("RAW OpenRouter response:", response.data);
+Then try again with a resume. This will help confirm:
+
+✅ Whether you're getting a valid OpenRouter reply
+
+❌ Or if the API is failing completely
+
+✅ 2. Confirm You’re Sending a Correct Prompt
+Use this in the payload sent to OpenRouter:
+
+ts
+Copy code
+{
+  model: "openai/gpt-3.5-turbo",
+  messages: [
+    {
+      role: "user",
+      content: `Extract skills, experience, and tech_stack from this resume. Respond only in JSON format like:
+{
+  "skills": [...],
+  "experience": "...",
+  "tech_stack": [...]
+}
+Resume: ${resumeText}`
+    }
+  ]
+}
+✅ 3. Add Safe JSON Parsing with Fallback
+Here’s a fixed version of your TypeScript handler:
+
+moonshot.service.ts (or similar)
+ts
+Copy code
+import axios from "axios";
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const API_KEY = process.env.MOONSHOT_API_KEY;
+
+export async function extractSkillsFromResume(resumeText: string) {
+  try {
+    const response = await axios.post(
+      OPENROUTER_URL,
+      {
+        model: "openai/gpt-3.5-turbo",
+        messages: [
+          {
+            role: "user",
+            content: `Extract skills, experience, and tech_stack from this resume. Respond only in JSON format like:
+{
+  "skills": [...],
+  "experience": "...",
+  "tech_stack": [...]
+}
+Resume: ${resumeText}`
+          }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${API_KEY}`,
+          "Content-Type": "application/json",
+        }
+      }
+    );
+
+    // 🧪 Debug log
+    console.log("OpenRouter raw response:", response.data);
+
+    const rawText = response.data.choices[0].message.content;
+
+    const parsed = JSON.parse(rawText);
+
+    // Validate keys exist
+    if (!parsed.skills || !Array.isArray(parsed.skills)) {
+      throw new Error("Missing skills in response");
+    }
+
+    return parsed;
+
+  } catch (error) {
+    console.error("❌ Failed to parse resume:", error.message || error);
+    return { message: "Failed to process resume" };
+  }
+}
+🧪 Test It With This Resume:
+json
+Copy code
+{
+  "resume": "Full-stack developer with 5 years experience in JavaScript, TypeScript, Node.js, React, PostgreSQL, Docker, and AWS. Built scalable web apps and microservices for enterprise clients."
+}
+You should get something like:
+
+json
+Copy code
+{
+  "skills": ["JavaScript", "TypeScript", "Node.js", "React", "PostgreSQL", "Docker", "AWS"],
+  "experience": "5 years",
+  "tech_stack": ["Microservices", "Web Applications", "Cloud Deployment"]
+}
+✅

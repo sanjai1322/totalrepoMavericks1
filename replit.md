@@ -42,9 +42,10 @@ Key entities include:
 - **Hackathons**: Competitive events with challenges and participants
 
 ### AI Integration
-- **AI Client**: Custom integration with Moonshot/Kimi AI service
+- **AI Client**: OpenRouter integration with GPT-3.5-turbo for reliable AI processing
 - **Capabilities**: Resume parsing, assessment generation, recommendation algorithms, and hackathon challenge creation
-- **Use Cases**: Skill extraction from resumes, dynamic assessment creation, personalized learning paths
+- **Use Cases**: Skill extraction from resumes with confidence scores, dynamic assessment creation, personalized learning paths
+- **Recent Update**: Migrated from Moonshot/Kimi to OpenRouter GPT-3.5-turbo for improved reliability and structured JSON responses
 
 ### Authentication & Session Management
 - **Mock Authentication**: Development-ready user session system
@@ -84,7 +85,8 @@ Key entities include:
 - **tsx**: TypeScript execution environment for Node.js
 
 ### AI and External Services
-- **Moonshot/Kimi AI API**: External AI service for natural language processing, assessment generation, and recommendation algorithms
+- **OpenRouter API**: External AI service providing access to OpenAI GPT-3.5-turbo for natural language processing, assessment generation, and recommendation algorithms
+- **Environment Variable**: OPENROUTER_API_KEY for secure API access
 
 ### Utility Libraries
 - **date-fns**: Date manipulation and formatting
