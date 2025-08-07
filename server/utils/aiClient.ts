@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const OPENROUTER_API_KEY = process.env.MOONSHOT_API_KEY || process.env.KIMI_API_KEY || "";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 interface OpenRouterResponse {
@@ -20,7 +20,7 @@ export class AIClient {
     this.baseUrl = OPENROUTER_BASE_URL;
     
     if (!this.apiKey) {
-      throw new Error("OpenRouter API key not found. Please set MOONSHOT_API_KEY or KIMI_API_KEY environment variable.");
+      throw new Error("OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.");
     }
   }
 

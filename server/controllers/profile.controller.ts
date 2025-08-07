@@ -48,7 +48,7 @@ Extract:
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.MOONSHOT_API_KEY}`,
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json'
         }
       }
